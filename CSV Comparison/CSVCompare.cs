@@ -1,5 +1,6 @@
 ﻿using CSACore.Core;
 using CSACore.CSV;
+using CSACore.Profiling;
 using CSVComparer.CSVComparison;
 using System;
 using System.Collections.Generic;
@@ -8,6 +9,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -159,6 +161,7 @@ namespace CSVComparer.CSV_Comparison {
                     // Add issue
                     if (unequalIssue.HasDetails)
                         mIssues.Add(unequalIssue);
+
                 }
             }
 
