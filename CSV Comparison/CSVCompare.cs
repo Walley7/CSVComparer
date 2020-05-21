@@ -19,6 +19,11 @@ namespace CSVComparer.CSV_Comparison {
 
     class CSVCompare {
         //================================================================================
+        public const int                        PROGRESS_UPDATE_PERIOD = 10;
+        public const int                        DURATION_UPDATE_PERIOD = 1000;
+
+
+        //================================================================================
         private BackgroundWorker                mBackgroundWorker;
 
         private string                          mLeftCSVFilePath;
@@ -62,6 +67,9 @@ namespace CSVComparer.CSV_Comparison {
 
         //--------------------------------------------------------------------------------
         private bool Compare(CSVData left, CSVData right) {
+            // Variables
+            CSVCompareMergeIssue issue = new CSVCompareMergeIssue();
+
             // Mappings
             CSVMapping[] mappings = (from m in mMappings where left.Headers.Contains(m.LeftColumnName.ToLower()) && right.Headers.Contains(m.RightColumnName.ToLower()) select m).ToArray();
             CSVMapping[] keyMappings = (from k in mappings where k.Key select k).ToArray();
@@ -86,7 +94,7 @@ namespace CSVComparer.CSV_Comparison {
             // Stopwatch
             Stopwatch stopwatch = Stopwatch.StartNew();
             long lastProgressTime = stopwatch.ElapsedMilliseconds;
-            long lastProgressTick = stopwatch.ElapsedTicks;
+            long lastDurationTime = stopwatch.ElapsedMilliseconds;
 
             // Auto WIP row tracking
             List<CSVDataRow> comparedRightRows = new List<CSVDataRow>();
@@ -98,9 +106,12 @@ namespace CSVComparer.CSV_Comparison {
                     return false;
 
                 // Progress
-                if (stopwatch.ElapsedMilliseconds - lastProgressTime >= 10) {
+                if (stopwatch.ElapsedMilliseconds - lastProgressTime >= PROGRESS_UPDATE_PERIOD || stopwatch.ElapsedMilliseconds - lastDurationTime >= DURATION_UPDATE_PERIOD) {
                     lastProgressTime = stopwatch.ElapsedMilliseconds;
-                    timeRemaining = c > 0 ? new TimeSpan((stopwatch.ElapsedTicks / c) * (rowCount - c)) : TimeSpan.MaxValue;
+                    if (stopwatch.ElapsedMilliseconds - lastDurationTime >= DURATION_UPDATE_PERIOD) {
+                        lastDurationTime = stopwatch.ElapsedMilliseconds;
+                        timeRemaining = c > 0 ? new TimeSpan((stopwatch.ElapsedTicks / c) * (rowCount - c)) : TimeSpan.MaxValue;
+                    }
                     ProgressEvent?.Invoke(0, c, rowCount, "Comparing CSVs...", c, rowCount, timeRemaining);
                 }
 
@@ -109,19 +120,19 @@ namespace CSVComparer.CSV_Comparison {
                 ++r;
 
                 // Linking issues
-                CSVCompareMergeIssue linkingIssue = new CSVCompareMergeIssue(CSVCompareMergeIssue.EType.LINKING, r, null, leftRow, null, mappings);
+                issue.Initialise(CSVCompareMergeIssue.EType.LINKING, r, null);
 
                 // Keys
                 foreach (CSVMapping k in keyMappings) {
                     if (leftRow.Value(k.LeftColumnName) == null)
-                        linkingIssue.AddDetails($"Key value [{k.LeftColumnName}] is empty.", new string[] { k.LeftColumnName });
+                        issue.AddDetails($"Key value [{k.LeftColumnName}] is empty.", new string[] { k.LeftColumnName });
                 }
 
                 // Key collisions
                 if (keyMappings.Count() > 0) {
                     List<CSVDataRow> keyCollisions = CSVMapping.MatchingRightRows(left, left, leftRow, leftKeyMappings);
                     if (keyCollisions.Count > 0)
-                        linkingIssue.AddDetails($"Key values not unique - the following row numbers have the same keys: {string.Join(", ", from k in keyCollisions select k.RowIndex + 2)}", leftKeyColumns);
+                        issue.AddDetails($"Key values not unique - the following row numbers have the same keys: {string.Join(", ", from k in keyCollisions select k.RowIndex + 2)}", leftKeyColumns);
                 }
 
                 // Stop
@@ -131,13 +142,15 @@ namespace CSVComparer.CSV_Comparison {
                 // Matches
                 List<CSVDataRow> matches = CSVMapping.MatchingRightRows(left, right, leftRow, keyMappings);
                 if (matches.Count == 0)
-                    linkingIssue.AddDetails(keyMappings.Count() > 0 ? "No matches found in the other file for this row's key values." : "Nothing to match with - this line is past the end line of the other file.", leftKeyColumns);
+                    issue.AddDetails(keyMappings.Count() > 0 ? "No matches found in the other file for this row's key values." : "Nothing to match with - this line is past the end line of the other file.", leftKeyColumns);
                 else if (matches.Count > 1)
-                    linkingIssue.AddDetails("Unique match could not be made - more than one row in the other file had matching key values.", leftKeyColumns);
+                    issue.AddDetails("Unique match could not be made - more than one row in the other file had matching key values.", leftKeyColumns);
 
                 // Add linking issue
-                if (linkingIssue.HasDetails) {
-                    mIssues.Add(linkingIssue);
+                if (issue.HasDetails) {
+                    issue.AddValues(leftRow, null, mappings);
+                    mIssues.Add(issue);
+                    issue = new CSVCompareMergeIssue();
                     //continue;
                 }
 
@@ -148,19 +161,22 @@ namespace CSVComparer.CSV_Comparison {
                     ++c; // This row will be ignored when going through the right side rows
 
                     // Issue
-                    CSVCompareMergeIssue unequalIssue = new CSVCompareMergeIssue(CSVCompareMergeIssue.EType.UNEQUAL, r, rightRow.RowIndex + 1, leftRow, rightRow, mappings);
+                    issue.Initialise(CSVCompareMergeIssue.EType.UNEQUAL, r, rightRow.RowIndex + 1);
 
                     // Mappings
                     foreach (CSVMapping m in mappings) {
                         if (m.Include && !m.RowsEqual(leftRow, rightRow)) {
-                            unequalIssue.AddDetails($"[{m.LeftColumnName}] and [{m.RightColumnName}] do not match ('{(leftRow.Value(m.LeftColumnName) ?? "").Replace("\n", "").Replace("'", "`")}', '{(rightRow.Value(m.RightColumnName) ?? "").Replace("\n", "").Replace("'", "`")}').",
-                                                    new string[] { m.LeftColumnName }, new string[] { m.RightColumnName });
+                            issue.AddDetails($"[{m.LeftColumnName}] and [{m.RightColumnName}] do not match ('{(leftRow.Value(m.LeftColumnName) ?? "").Replace("\n", "").Replace("'", "`")}', '{(rightRow.Value(m.RightColumnName) ?? "").Replace("\n", "").Replace("'", "`")}').",
+                                             new string[] { m.LeftColumnName }, new string[] { m.RightColumnName });
                         }
                     }
 
                     // Add issue
-                    if (unequalIssue.HasDetails)
-                        mIssues.Add(unequalIssue);
+                    if (issue.HasDetails) {
+                        issue.AddValues(leftRow, rightRow, mappings);
+                        mIssues.Add(issue);
+                        issue = new CSVCompareMergeIssue();
+                    }
 
                 }
             }
@@ -182,9 +198,12 @@ namespace CSVComparer.CSV_Comparison {
                     continue;
 
                 // Progress
-                if (stopwatch.ElapsedMilliseconds - lastProgressTime >= 10) {
+                if (stopwatch.ElapsedMilliseconds - lastProgressTime >= PROGRESS_UPDATE_PERIOD || stopwatch.ElapsedMilliseconds - lastDurationTime >= DURATION_UPDATE_PERIOD) {
                     lastProgressTime = stopwatch.ElapsedMilliseconds;
-                    timeRemaining = c > 0 ? new TimeSpan((stopwatch.ElapsedTicks / c) * (rowCount - c)) : TimeSpan.MaxValue;
+                    if (stopwatch.ElapsedMilliseconds - lastDurationTime >= DURATION_UPDATE_PERIOD) {
+                        lastDurationTime = stopwatch.ElapsedMilliseconds;
+                        timeRemaining = c > 0 ? new TimeSpan((stopwatch.ElapsedTicks / c) * (rowCount - c)) : TimeSpan.MaxValue;
+                    }
                     ProgressEvent?.Invoke(0, c, rowCount, "Comparing CSVs...", c, rowCount, timeRemaining);
                 }
 
@@ -192,23 +211,25 @@ namespace CSVComparer.CSV_Comparison {
                 ++c;
 
                 // Linking issues
-                CSVCompareMergeIssue linkingIssue = new CSVCompareMergeIssue(CSVCompareMergeIssue.EType.LINKING, null, r, null, rightRow, mappings);
+                issue.Initialise(CSVCompareMergeIssue.EType.LINKING, null, r);
 
                 // Key collisions
                 if (keyMappings.Count() > 0) {
                     List<CSVDataRow> keyCollisions = CSVMapping.MatchingLeftRows(right, right, rightRow, rightKeyMappings);
                     if (keyCollisions.Count > 0)
-                        linkingIssue.AddDetails($"Key values not unique - the following row numbers have the same keys: {string.Join(", ", from k in keyCollisions select k.RowIndex + 2)}", null, rightKeyColumns);
+                        issue.AddDetails($"Key values not unique - the following row numbers have the same keys: {string.Join(", ", from k in keyCollisions select k.RowIndex + 2)}", null, rightKeyColumns);
                 }
 
                 // Matches
                 List<CSVDataRow> matches = CSVMapping.MatchingLeftRows(left, right, rightRow, keyMappings);
                 if (matches.Count == 0)
-                    linkingIssue.AddDetails(keyMappings.Count() > 0 ? "No matches found in the other file for this row's key values." : "Nothing to match with - this line is past the end line of the other file.", null, rightKeyColumns);
+                    issue.AddDetails(keyMappings.Count() > 0 ? "No matches found in the other file for this row's key values." : "Nothing to match with - this line is past the end line of the other file.", null, rightKeyColumns);
 
                 // Add linking issue
-                if (linkingIssue.HasDetails) {
-                    mIssues.Add(linkingIssue);
+                if (issue.HasDetails) {
+                    issue.AddValues(null, rightRow, mappings);
+                    mIssues.Add(issue);
+                    issue = new CSVCompareMergeIssue();
                     //continue;
                 }
             }

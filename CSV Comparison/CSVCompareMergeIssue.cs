@@ -38,27 +38,38 @@ namespace CSVComparer.CSVComparison {
 
         //================================================================================
         //--------------------------------------------------------------------------------
-        public CSVCompareMergeIssue(EType type, string details, int? leftRow, int? rightRow, CSVDataRow left, CSVDataRow right, IEnumerable<CSVMapping> mappings) {
+        public CSVCompareMergeIssue() { }
+
+        //--------------------------------------------------------------------------------
+        public CSVCompareMergeIssue(EType type, string details, int? leftRow, int? rightRow) {
+            Initialise(type, details, leftRow, rightRow);
+        }
+        
+        //--------------------------------------------------------------------------------
+        public CSVCompareMergeIssue(EType type, int? leftRow, int? rightRow) {
+            Initialise(type, leftRow, rightRow);
+        }
+
+        //--------------------------------------------------------------------------------
+        // Allows re-using an instance to reduce memory churn.
+        public void Initialise(EType type, string details, int? leftRow, int? rightRow) {
+            // Reset
+            if (mDetailsList != null)
+                mDetailsList.Clear();
+            mLeftValues.Clear();
+            mRightValues.Clear();
+            mLeftIssueColumns.Clear();
+            mRightIssueColumns.Clear();
+
             // Issue
             mType = type;
             mDetails = details;
             mLeftRow = leftRow;
             mRightRow = rightRow;
-
-            // Values
-            foreach (CSVMapping mapping in mappings) {
-                if (mapping.Include || mapping.Key) {
-                    mLeftValues.Add(left != null ? left.Value(mapping.LeftColumnName) : null);
-                    mRightValues.Add(right != null ? right.Value(mapping.RightColumnName) : null);
-                }
-            }
         }
-        
+
         //--------------------------------------------------------------------------------
-        public CSVCompareMergeIssue(EType type, int? leftRow, int? rightRow, CSVDataRow left, CSVDataRow right, IEnumerable<CSVMapping> mappings) :
-        this(type, "", leftRow, rightRow, left, right, mappings) {
-
-        }
+        public void Initialise(EType type, int? leftRow, int? rightRow) { Initialise(type, "", leftRow, rightRow); }
 
 
         // TYPE ================================================================================
@@ -118,6 +129,16 @@ namespace CSVComparer.CSVComparison {
 
 
         // VALUES ================================================================================
+        //--------------------------------------------------------------------------------
+        public void AddValues(CSVDataRow left, CSVDataRow right, IEnumerable<CSVMapping> mappings) {
+            foreach (CSVMapping mapping in mappings) {
+                if (mapping.Include || mapping.Key) {
+                    mLeftValues.Add(left != null ? left.Value(mapping.LeftColumnName) : null);
+                    mRightValues.Add(right != null ? right.Value(mapping.RightColumnName) : null);
+                }
+            }
+        }
+
         //--------------------------------------------------------------------------------
         public List<string> LeftValues { get { return mLeftValues; } }
         public List<string> RightValues { get { return mRightValues; } }
