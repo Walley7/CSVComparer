@@ -1,0 +1,95 @@
+{
+   "Mappings": [
+      {
+         "Key": true,
+         "Include": true,
+         "LeftColumn": "Insured",
+         "RightColumn": "Insured",
+         "Type": 0,
+         "MergeRule": 0,
+         "IgnoreCase": true,
+         "IgnoreSymbols": true,
+         "AllowedSymbols": "-.,%",
+         "IgnoreWhitespace": true,
+         "DecimalPrecision": -1
+      },
+      {
+         "Key": false,
+         "Include": true,
+         "LeftColumn": "Business Activities",
+         "RightColumn": "ABN",
+         "Type": 1,
+         "MergeRule": 0,
+         "IgnoreCase": true,
+         "IgnoreSymbols": false,
+         "AllowedSymbols": "-.,%",
+         "IgnoreWhitespace": false,
+         "DecimalPrecision": 2
+      },
+      {
+         "Key": false,
+         "Include": true,
+         "LeftColumn": "Policy Number",
+         "RightColumn": "Business Activities",
+         "Type": 2,
+         "MergeRule": 2,
+         "IgnoreCase": false,
+         "IgnoreSymbols": false,
+         "AllowedSymbols": "-.,%",
+         "IgnoreWhitespace": false,
+         "DecimalPrecision": -1
+      },
+      {
+         "Key": false,
+         "Include": true,
+         "LeftColumn": "Transaction Type",
+         "RightColumn": "Policy Number",
+         "Type": 3,
+         "MergeRule": 3,
+         "IgnoreCase": false,
+         "IgnoreSymbols": false,
+         "AllowedSymbols": "-.,%",
+         "IgnoreWhitespace": true,
+         "DecimalPrecision": -1
+      },
+      {
+         "Key": false,
+         "Include": true,
+         "LeftColumn": "Broker",
+         "RightColumn": "Quote ID",
+         "Type": 0,
+         "MergeRule": 4,
+         "IgnoreCase": false,
+         "IgnoreSymbols": false,
+         "AllowedSymbols": "-.,%",
+         "IgnoreWhitespace": false,
+         "DecimalPrecision": -1
+      },
+      {
+         "Key": false,
+         "Include": true,
+         "LeftColumn": "Postcode",
+         "RightColumn": "Transaction Type",
+         "Type": 0,
+         "MergeRule": 5,
+         "IgnoreCase": false,
+         "IgnoreSymbols": false,
+         "AllowedSymbols": "-.,%",
+         "IgnoreWhitespace": false,
+         "DecimalPrecision": -1
+      },
+      {
+         "Key": false,
+         "Include": true,
+         "LeftColumn": "Test Column",
+         "RightColumn": "Transaction Type",
+         "Type": 0,
+         "MergeRule": 5,
+         "IgnoreCase": false,
+         "IgnoreSymbols": false,
+         "AllowedSymbols": "-.,%",
+         "IgnoreWhitespace": false,
+         "DecimalPrecision": -1
+      }
+   ]
+}

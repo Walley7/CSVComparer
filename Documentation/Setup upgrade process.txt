@@ -1,0 +1,4 @@
+Update the version in:
+- FileMe > AssemblyInfo.cs
+- FileMeSetup > Properties > Version
+  * Accept the ProductCode change.
